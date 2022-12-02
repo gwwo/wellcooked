@@ -165,7 +165,7 @@ class GameUI():
         self.pressed: dict[int, bool] = dict()
         self.triggered: dict[int, bool] = dict()
 
-        for p in game.players:
+        for p in self.game.players:
             mapping = config.USER_INPUT_MAPPING[p.id]
             for key, action in mapping.items():
                 if action == Action.INTERACT:

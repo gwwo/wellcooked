@@ -46,7 +46,7 @@ def load(layout_name: str):
 
 
 # how many pixels in the game's measurement of 1
-VISUAL_UNIT = 60
+PIXELS = 60
 
 USER_INPUT_MAPPING = {
     '1': {

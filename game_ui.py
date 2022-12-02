@@ -110,15 +110,19 @@ class GameUI():
         self.game, self.batch = game, batch
 
         self.clock = None
-        self.listening = False
+        self.listen_for_keyboard = False
 
         self.is_closed = False
-        def on_close():
-            self.window.close()
-            self.is_closed = True
-        self.window.push_handlers(on_close)
+        self.window.push_handlers(on_close=self.close)
         self.window.switch_to()
         self.draw()
+
+    def close(self):
+        self.window.pop_handlers()
+        if self.listen_for_keyboard:
+            self.window.pop_handlers()
+        self.window.close()
+        self.is_closed = True
 
     def draw(self):
         self.window.clear()
@@ -164,7 +168,6 @@ class GameUI():
     def setup_listening(self):
         self.pressed: dict[int, bool] = dict()
         self.triggered: dict[int, bool] = dict()
-
         for p in self.game.players:
             mapping = config.USER_INPUT_MAPPING[p.id]
             for key, action in mapping.items():
@@ -172,7 +175,6 @@ class GameUI():
                     self.triggered[key] = False
                 else:
                     self.pressed[key] = False
-
         def on_key_press(symbol, modifiers):
             if symbol in self.pressed:
                 self.pressed[symbol] = True
@@ -184,13 +186,19 @@ class GameUI():
         self.window.push_handlers(on_key_press, on_key_release)
 
 
+    def listen_until(self):
+        actions = self.listen()
+        while all(a == Action.NOOP for a in actions.values()):
+            actions = self.listen()
+        return actions
+
     def listen(self):
         actions = {p.id: Action.NOOP for p in self.game.players}
         if self.is_closed: return actions
 
-        if not self.listening:
+        if not self.listen_for_keyboard:
             self.setup_listening()
-            self.listening = True
+            self.listen_for_keyboard = True
 
         self.window.dispatch_events()
         for p_id in actions:
@@ -246,14 +254,12 @@ class GameUI():
 if __name__ == "__main__":
 
     game = Game(*config.load('simple/circuit_room'), move_to_axis=True).reset()
-    game = Game(*config.load('big_room'), player_size=(0.6, 0.96)).reset()
+    # game = Game(*config.load('big_room'), player_size=(0.6, 0.96)).reset()
 
     window = GameUI(game)
 
     while not window.is_closed:
-        actions = window.listen()
-        if all(a == Action.NOOP for a in actions.values()):
-            continue
+        actions = window.listen_until()
         game.step(actions)
         window.sync()
 

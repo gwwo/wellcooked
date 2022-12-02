@@ -18,7 +18,7 @@ class Player(Chef):
 
 @dataclass
 class ActionValue:
-    face: PlayerFacing
+    turn: PlayerFacing
     and_interact: bool
     then_move: Tuple[float, float] # dx, dy
 
@@ -31,23 +31,23 @@ class Action(Enum):
     INTERACT = 5
 
     def compute(self, player: Player, move_to_axis: bool, move_stride: float) -> ActionValue:
-        face, and_interact = player.facing, False
+        turn, and_interact = player.facing, False
         x, y, dx, dy = player.x, player.y, 0.0, 0.0
         if self == Action.UP:
             dy = math.floor(y) + 1 - y if move_to_axis else move_stride
-            face='north'
+            turn='north'
         elif self == Action.DOWN:
             dy = math.ceil(y) - 1 - y if move_to_axis else -move_stride
-            face='south'
+            turn='south'
         elif self == Action.RIGHT:
             dx = math.floor(x) + 1 - x if move_to_axis else move_stride
-            face='east'
+            turn='east'
         elif self == Action.LEFT:
             dx = math.ceil(x) - 1 - x if move_to_axis else -move_stride
-            face='west'
+            turn='west'
         elif self == Action.INTERACT:
             and_interact = True
-        return ActionValue(face, and_interact, then_move=(dx, dy))
+        return ActionValue(turn, and_interact, then_move=(dx, dy))
 
 
 class Game:
@@ -78,7 +78,7 @@ class Game:
         events: dict[Player, ActionValue] = {p: actions[p.id].compute(p, self.move_to_axis, self.move_stride) for p in self.players}
 
         for p, av in events.items():
-            p.facing = av.face
+            p.facing = av.turn
             if av.and_interact:
                 counter = self.within_reach(p)
                 if counter != None:

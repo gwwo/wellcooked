@@ -87,11 +87,16 @@ class PlayerSprite(PixelSprite):
             img = assets.chef['with_onion']
         self.set_image(img[facing])
 
+from random import randint
 
+class GameUI():
 
-class GameUI(pyglet.window.Window):
     def __init__(self, game: Game):
-        super().__init__(game.kitchen_w*config.VISUAL_UNIT, game.kitchen_h*config.VISUAL_UNIT)
+
+        width = game.kitchen_w * config.VISUAL_UNIT
+        height = game.kitchen_h * config.VISUAL_UNIT
+        window = pyglet.window.Window(width, height)
+
         batch = pyglet.graphics.Batch()
         c_sprites: dict[Counter, CounterSprite] = dict()
         p_sprites: dict[Player, PlayerSprite] = dict()
@@ -110,6 +115,8 @@ class GameUI(pyglet.window.Window):
             # rect.anchor_position = (w-1)/2*visual_unit, (h-1)/2*visual_unit
             p_sprites[player] = PlayerSprite(player.x, player.y, batch)
 
+        self.window = window
+
         self.c_sprites, self.p_sprites, self.f_sprites = c_sprites, p_sprites, f_sprites
         self.game = game
         self.batch = batch
@@ -125,36 +132,52 @@ class GameUI(pyglet.window.Window):
                 else:
                     self.pressed[key] = False
 
-    def on_key_press(self, symbol, modifiers):
-        if symbol in self.pressed:
-            self.pressed[symbol] = True
-        elif symbol in self.triggered:
-            self.triggered[symbol] = True
+        self.is_closed = False
+        def on_close():
+            self.window.close()
+            self.is_closed = True
+        self.window.push_handlers(on_close)
 
-    def on_key_release(self, symbol, modifiers):
-        if symbol in self.pressed:
-            self.pressed[symbol] = False
+        def on_key_press(symbol, modifiers):
+            if symbol in self.pressed:
+                self.pressed[symbol] = True
+            elif symbol in self.triggered:
+                self.triggered[symbol] = True
+        def on_key_release(symbol, modifiers):
+            if symbol in self.pressed:
+                self.pressed[symbol] = False
+        self.window.push_handlers(on_key_press, on_key_release)
 
-    def on_draw(self):
-        self.clear()
+        self.clock = pyglet.clock.Clock()
+        self.clock.schedule_interval(self.players_moving, 1/120.0)
+
+        self.window.switch_to()
+        self.window.clear()
         self.batch.draw()
+        self.window.flip()
+        self.is_paused = True
 
-    def clear_keys(self):
-        for k in self.pressed:
-            self.pressed[k] = False
-        for k in self.triggered:
-            self.triggered[k] = False
+    def sync(self):
+        # print('start syncing')
+        if self.is_closed: return
+        self.players_turn_and_interact()
+        self.is_paused = False
+        while True:
+            self.clock.tick()
+            self.window.dispatch_events()
+            if self.is_closed:
+                break
+            self.window.clear()
+            self.batch.draw()
+            self.window.flip()
+            if self.is_paused:
+                break
+        # print('synced')
 
-    def elapse(self, dt):
-        # animate the state transition for the last step
-        if not self.finish_animating(dt):
-            return
-        self.step()
-
-    def step(self):
-
+    def listen(self):
         actions = {p.id: Action.NOOP for p in self.game.players}
-
+        if self.is_closed: return actions
+        self.window.dispatch_events()
         for p_id in actions:
             mapping = config.USER_INPUT_MAPPING[p_id]
             for key, action in mapping.items():
@@ -163,59 +186,60 @@ class GameUI(pyglet.window.Window):
                 if key in self.triggered and self.triggered[key]:
                     self.triggered[key] = False
                     actions[p_id] = action
+        return actions
 
-        if all(a == Action.NOOP for a in actions.values()):
-            return
-
-        rewards = self.game.step(actions)
-
-        # Face and Interact instantly
+    def players_turn_and_interact(self):
         for player, sprite in self.p_sprites.items():
             sprite.update_image(player.holding, player.facing)
-
         for counter, sprite in self.c_sprites.items():
             if not counter.new_one_to_dispense:
                 sprite.update_image(counter.holding)
 
-    # how many unit distance at most is a player allowed to move in one second
-    MAX_VEL = 5.0
+    # will move no more than this amount of tiles in one second
+    players_moving_speed = 5.0
 
-    def finish_animating(self, dt: float):
+    def players_moving(self, dt: float):
+        # print('moving', dt)
+        if dt > 0.02: dt = 0.02
         finished = True
         for player, sprite in self.p_sprites.items():
             x, y = sprite.current_x, sprite.current_y
             dx, dy = player.x - x, player.y - y
-
             if dx != 0:
-                d_ = dt * self.MAX_VEL
+                d_ = dt * self.players_moving_speed
                 if d_ > abs(dx):
                     x = player.x
                 else:
                     finished = False
                     x += d_ if dx > 0 else -d_
                 sprite.set_x(x)
-
             if dy != 0:
-                d_ = dt * self.MAX_VEL
+                d_ = dt * self.players_moving_speed
                 if d_ > abs(dy):
                     y = player.y
                 else:
                     finished = False
                     y += d_ if dy > 0 else -d_
                 sprite.set_y(y)
-        return finished
+        self.is_paused = finished
+
+
+import time
 
 
 if __name__ == "__main__":
 
-    # game = Game(*config.load('simple/circuit_room'), move_to_axis=True).reset()
+    game = Game(*config.load('simple/circuit_room'), move_to_axis=True).reset()
 
-    game = Game(*config.load('big_room'), player_size=(0.6, 0.96)).reset()
+    # game = Game(*config.load('big_room'), player_size=(0.6, 0.96)).reset()
 
-    gameui = GameUI(game)
+    window = GameUI(game)
 
-    pyglet.clock.schedule_interval(gameui.elapse, 1 / 120.0)
-
-    pyglet.app.run()
+    while not window.is_closed:
+        actions = window.listen()
+        if all(a == Action.NOOP for a in actions.values()):
+            continue
+        game.step(actions)
+        window.sync()
 
 

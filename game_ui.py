@@ -142,7 +142,6 @@ class GameUI():
 
         if self.clock == None:
             self.clock = pyglet.clock.Clock()
-
         moving_finished = False
         first_tick = True
         def moving(dt):
@@ -150,7 +149,6 @@ class GameUI():
             if first_tick and dt > 0.02:
                 dt = 0.02
             moving_finished = self.players_moving(dt)
-
         self.clock.schedule_interval(moving, 1/120.0)
         while True:
             self.clock.tick()
@@ -165,7 +163,33 @@ class GameUI():
         self.clock.unschedule(moving)
         # print('synced')
 
-    def setup_listening(self):
+    def listen_until(self):
+        while True:
+            actions = self.listen()
+            if self.is_closed or not all(a == Action.NOOP for a in actions.values()):
+                return actions
+
+    def listen(self):
+        actions = {p.id: Action.NOOP for p in self.game.players}
+        if self.is_closed: 
+            return actions
+
+        if not self.listen_for_keyboard:
+            self.setup_keyboard_listener()
+            self.listen_for_keyboard = True
+
+        self.window.dispatch_events()
+        for p_id in actions:
+            mapping = config.USER_INPUT_MAPPING[p_id]
+            for key, action in mapping.items():
+                if key in self.pressed and self.pressed[key]:
+                    actions[p_id] = action
+                if key in self.triggered and self.triggered[key]:
+                    self.triggered[key] = False
+                    actions[p_id] = action
+        return actions
+
+    def setup_keyboard_listener(self):
         self.pressed: dict[int, bool] = dict()
         self.triggered: dict[int, bool] = dict()
         for p in self.game.players:
@@ -184,32 +208,6 @@ class GameUI():
             if symbol in self.pressed:
                 self.pressed[symbol] = False
         self.window.push_handlers(on_key_press, on_key_release)
-
-
-    def listen_until(self):
-        actions = self.listen()
-        while all(a == Action.NOOP for a in actions.values()):
-            actions = self.listen()
-        return actions
-
-    def listen(self):
-        actions = {p.id: Action.NOOP for p in self.game.players}
-        if self.is_closed: return actions
-
-        if not self.listen_for_keyboard:
-            self.setup_listening()
-            self.listen_for_keyboard = True
-
-        self.window.dispatch_events()
-        for p_id in actions:
-            mapping = config.USER_INPUT_MAPPING[p_id]
-            for key, action in mapping.items():
-                if key in self.pressed and self.pressed[key]:
-                    actions[p_id] = action
-                if key in self.triggered and self.triggered[key]:
-                    self.triggered[key] = False
-                    actions[p_id] = action
-        return actions
 
     def players_turn_and_interact(self):
         for player, sprite in self.p_sprites.items():

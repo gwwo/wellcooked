@@ -111,25 +111,28 @@ class GameUI():
 
         self.clock = None
         self.listen_for_keyboard = False
-
         self.is_closed = False
         self.window.push_handlers(on_close=self.close)
         self.window.switch_to()
         self.draw()
-
-    def close(self):
-        self.window.pop_handlers()
-        if self.listen_for_keyboard:
-            self.window.pop_handlers()
-        self.window.close()
-        self.is_closed = True
 
     def draw(self):
         self.window.clear()
         self.batch.draw()
         self.window.flip()
 
+    def close(self):
+        if self.is_closed:
+            return
+        self.window.pop_handlers()
+        if self.listen_for_keyboard:
+            self.window.pop_handlers()
+        self.window.close()
+        self.is_closed = True
+
     def fresh(self):
+        if self.is_closed:
+            return
         self.players_turn_and_interact()
         self.players_move()
         self.draw()

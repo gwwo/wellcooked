@@ -254,14 +254,16 @@ class GameUI():
 
 if __name__ == "__main__":
 
-    game = Game(*config.load('simple/circuit_room'), move_to_axis=True).reset()
+    game = Game(*config.load('simple/big_room'), move_to_axis=True).reset()
     # game = Game(*config.load('big_room'), player_size=(0.6, 0.96)).reset()
 
     window = GameUI(game)
 
     while not window.is_closed:
         actions = window.listen_until()
-        game.step(actions)
+        feedbacks = game.step(actions)
+        feedbacks = {id: r for id, r in feedbacks.items() if r > 0}
+        if len(feedbacks) > 0: print(feedbacks)
         window.sync()
 
 

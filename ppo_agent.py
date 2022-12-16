@@ -15,13 +15,15 @@ from torch.utils.tensorboard import SummaryWriter
 
 from game_env import GameEnv
 
+layout_name = "simple/circuit_room"
+
 
 def parse_args():
     # fmt: off
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-name", type=str, default=os.path.basename(__file__).rstrip(".py"),
         help="the name of this experiment")
-    parser.add_argument("--seed", type=int, default=1,
+    parser.add_argument("--seed", type=int, default=130,
         help="seed of the experiment")
     parser.add_argument("--torch-deterministic", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
         help="if toggled, `torch.backends.cudnn.deterministic=False`")
@@ -39,7 +41,7 @@ def parse_args():
     # Algorithm specific arguments
     parser.add_argument("--env-id", type=str, default="BreakoutNoFrameskip-v4",
         help="the id of the environment")
-    parser.add_argument("--total-timesteps", type=int, default=2_000_000,
+    parser.add_argument("--total-timesteps", type=int, default=1_000_000,
         help="total timesteps of the experiments")
     parser.add_argument("--learning-rate", type=float, default=2.5e-4,
         help="the learning rate of the optimizer")
@@ -80,7 +82,7 @@ def parse_args():
 
 def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
-        env = GameEnv('simple/big_room')
+        env = GameEnv(layout_name)
         return env
     return thunk
 
@@ -95,14 +97,14 @@ class Agent(nn.Module):
     def __init__(self, envs):
         super().__init__()
         self.network = nn.Sequential(
-            layer_init(nn.Conv2d(1, 16, 4, stride=1)), # 25
+            layer_init(nn.Conv2d(1, 16, 5, stride=1)), # 25
             nn.ReLU(),
-            layer_init(nn.Conv2d(16, 32, 3, stride=2)), # 12
+            layer_init(nn.Conv2d(16, 32, 3, stride=3)), # 12
             nn.ReLU(),
-            layer_init(nn.Conv2d(32, 32, 5, stride=1)), # 8
+            layer_init(nn.Conv2d(32, 32, 2, stride=1)), # 8
             nn.ReLU(),
             nn.Flatten(),
-            layer_init(nn.Linear(32 * 8 * 8, 512)),
+            layer_init(nn.Linear(32 * 11 * 6, 512)),
             nn.ReLU(),
         )
         self.actor = layer_init(nn.Linear(512, 6), std=0.01)
@@ -112,7 +114,8 @@ class Agent(nn.Module):
         return self.critic(self.network(torch.unsqueeze(x, 1)))
 
     def get_action_and_value(self, x, action=None):
-        hidden = self.network(torch.unsqueeze(x, 1))
+        x = torch.unsqueeze(x, 1)
+        hidden = self.network(x)
         logits = self.actor(hidden)
         probs = Categorical(logits=logits)
         if action is None:
@@ -290,12 +293,12 @@ if __name__ == "__main__":
         print("SPS:", int(global_step / (time.time() - start_time)))
         writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
-    env = GameEnv('simple/big_room', render_mode='human')
+    env = GameEnv(layout_name, render_mode='human')
     obs, info = env.reset()
     while not env.window.is_closed:
         obs = torch.Tensor(obs).to(device)
         action, logprob, _, value = agent.get_action_and_value(torch.unsqueeze(obs, 0))
-        obs, reward, done, truncated, info = env.step(action.cpu().numpy()[0])
+        obs, reward, done, truncated, info = env.step(np.squeeze(action.cpu().numpy()))
 
     envs.close()
     writer.close()

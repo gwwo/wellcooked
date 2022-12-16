@@ -4,11 +4,11 @@ import pathlib
 from typing import Union
 
 from game import Action, Player
-from roles import Pot, Counter, Dish, Server, Ingredient
+from game.roles import Pot, Counter, Dish, Server, Ingredient
 
 def load(layout_name: str):
     with open(pathlib.Path(__file__).parent/(layout_name + '.txt'), 'r') as f:
-        lines = [line.strip() for line in f if line.strip()]
+        lines = [l.strip() for l in f if l.strip()]
     assert all(len(lines[0]) == len(l) for l in lines[1:])
 
     # starting from the left lower corner, 
@@ -36,7 +36,7 @@ def load(layout_name: str):
                 server = Server(can_serve_ingredient=layout_name.startswith('simple'))
                 tile = Counter(holding=server)
             elif char in ['O']:
-                tile = Counter(holding=Ingredient(value=char))
+                tile = Counter(holding=Ingredient(value='onion'))
                 tile.new_one_to_dispense = True
             elif char in ['1', '2', '3']:
                 players.append(Player(x=x, y=y, id=char))
@@ -45,8 +45,6 @@ def load(layout_name: str):
     return kitchen, players, pots
 
 
-# how many pixels in the game's measurement of 1
-PIXELS = 60
 
 USER_INPUT_MAPPING = {
     '1': {

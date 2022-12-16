@@ -1,6 +1,7 @@
 from typing import Union
 
-class Ingredient():
+
+class Ingredient:
     def __init__(self, value: str):
         self.value = value
     def new_one(self):
@@ -9,8 +10,10 @@ class Ingredient():
 class Dish:
     def __init__(self):
         self.content: Union[list[Ingredient], None] = None
+
     def new_one(self):
         return Dish()
+
 
 class Pot:
     def __init__(self):
@@ -34,15 +37,17 @@ class Pot:
         # self.need_cooking += 5
         return True
 
+
 class Server:
     def __init__(self, can_serve_ingredient: bool):
         self.serve_ingredient = can_serve_ingredient
+
     def serve(self, dish: Union[Dish, Ingredient]):
         success, reward = False, 0
         if type(dish) is Ingredient and self.serve_ingredient:
             success, reward = True, 1
         elif type(dish) is Dish and dish.content != None and len(dish.content) == 3:
-            success, reward = True, 1
+            success, reward = True, 100
         return success, reward
 
 class Counter:
@@ -50,10 +55,53 @@ class Counter:
         self.holding = holding
         self.new_one_to_dispense = False
 
+    def describe_holding(self):
+        if self.holding == None:
+            return "empty"
+        elif type(self.holding) is Ingredient:
+            if self.new_one_to_dispense:
+                return self.holding.value + "_dispenser"
+            else:
+                return self.holding.value
+        elif type(self.holding) is Server:
+            return "server"
+        elif type(self.holding) is Dish:
+            if self.new_one_to_dispense:
+                return "plate_dispenser"
+            else:
+                if self.holding.content == None:
+                    return "plate"
+                else:
+                    return "soup"
+        elif type(self.holding) is Pot:
+            num = len(self.holding.soup)
+            if num == 0:
+                return "pot"
+            elif num == 1:
+                return "pot_with_1_cooking"
+            elif num == 2:
+                return "pot_with_2_cooking"
+            elif num == 3:
+                if self.holding.need_cooking > 0:
+                    return "pot_with_3_cooking"
+                else:
+                    return "pot_ready"
+
 
 class Chef:
     def __init__(self):
         self.holding: Union[Ingredient, Dish, None] = None
+
+    def describe_holding(self):
+        if self.holding == None:
+            return "empty"
+        elif type(self.holding) is Dish:
+            if self.holding.content == None:
+                return "plate"
+            else:
+                return "soup"
+        elif type(self.holding) is Ingredient:
+            return self.holding.value
 
     def interact(self, counter: Counter):
         reward = 0
@@ -85,6 +133,3 @@ class Chef:
                 if success:
                     self.holding = None
         return reward
-
-
-

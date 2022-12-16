@@ -1,6 +1,7 @@
-from collision import Rect
-from typing import Union, Tuple
-from collision import check
+
+from typing import Union
+
+from .collision import Rect, check
 
 Wall = Rect
 
@@ -15,7 +16,7 @@ class Movable(Rect):
 Concern = Union[Wall, Movable]
 # `movable` receives responses, because it's concerned about others or because it concerns others;
 # once it resolves a response, it need not be concerned about the associated other anymore.
-Response = Tuple[Union[Concern, None], float, bool, bool]
+Response = tuple[Union[Concern, None], float, bool, bool]
 
 
 def move(movables: dict[Movable, list[Union[Wall, Movable]]]):

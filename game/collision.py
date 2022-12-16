@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+
 import math
 
 
@@ -9,7 +9,7 @@ class Rect:
         self.w, self.h = w, h
 
 
-def check(moving: Rect, fixed: Rect, dx: float, dy: float) -> Tuple[float, bool, bool]:
+def check(moving: Rect, fixed: Rect, dx: float, dy: float) -> tuple[float, bool, bool]:
     if dx == 0 and dy == 0:
         return 1, False, False
 

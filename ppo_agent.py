@@ -16,7 +16,7 @@ from torch.utils.tensorboard import SummaryWriter
 from game_env import GameEnv
 from game_env.flatten import FlattenWrapper
 
-layout_name = "simple/circuit_room"
+layout_name = "circuit_room"
 
 
 def parse_args():
@@ -44,7 +44,7 @@ def parse_args():
         help="the id of the environment")
     parser.add_argument("--total-timesteps", type=int, default=3_000_000,
         help="total timesteps of the experiments")
-    parser.add_argument("--learning-rate", type=float, default=2.5e-4,
+    parser.add_argument("--learning-rate", type=float, default=2.5e-3,
         help="the learning rate of the optimizer")
     parser.add_argument("--num-envs", type=int, default=64,
         help="the number of parallel game environments")

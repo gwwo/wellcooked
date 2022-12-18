@@ -24,18 +24,19 @@ class Pot:
         self.need_cooking -= 1
 
     def dump(self):
-        if self.need_cooking != 0:
-            return None
-        if len(self.soup) == 3:
-            soup, self.soup = self.soup, []
-            return soup
+        soup, reward = None, 0
+        if self.need_cooking == 0 and len(self.soup) == 3:
+            soup, reward = self.soup, 6
+            self.soup = []
+        return soup, reward
 
     def add(self, ingred: Ingredient):
-        if len(self.soup) >= 3:
-            return False
-        self.soup.append(ingred)
-        # self.need_cooking += 5
-        return True
+        success, reward = False, 0
+        if len(self.soup) < 3:
+            self.soup.append(ingred)
+            success, reward = True, 2
+            # self.need_cooking += 5
+        return success, reward
 
 
 class Server:
@@ -47,7 +48,7 @@ class Server:
         if type(dish) is Ingredient and self.serve_ingredient:
             success, reward = True, 1
         elif type(dish) is Dish and dish.content != None and len(dish.content) == 3:
-            success, reward = True, 100
+            success, reward = True, 10
         return success, reward
 
 class Counter:
@@ -116,20 +117,24 @@ class Chef:
                 counter.holding, self.holding = self.holding, None
             elif type(counter.holding) is Pot:
                 if self.holding.content == None:
-                    self.holding.content = counter.holding.dump()
+                    self.holding.content, r = counter.holding.dump()
+                    reward += r
             elif type(counter.holding) is Server:
-                success, reward = counter.holding.serve(self.holding)
+                success, r = counter.holding.serve(self.holding)
+                reward += r
                 if success:
                     self.holding = None
         elif type(self.holding) is Ingredient:
             if counter.holding == None:
                 counter.holding, self.holding = self.holding, None
             elif type(counter.holding) is Pot:
-                success = counter.holding.add(self.holding)
+                success, r = counter.holding.add(self.holding)
+                reward += r
                 if success:
                     self.holding = None
             elif type(counter.holding) is Server:
-                success, reward = counter.holding.serve(self.holding)
+                success, r = counter.holding.serve(self.holding)
+                reward += r
                 if success:
                     self.holding = None
         return reward

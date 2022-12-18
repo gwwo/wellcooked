@@ -25,10 +25,13 @@ class FlattenWrapper(gym.Wrapper):
 
         self.player_ids, self.player_N = e.player_ids, e.player_N
         self.N = self.player_N * self.copy_N
+        self.single_observation_space = e.single_player_observation_space
+
         self.observation_space = batch_space(
-            e.single_player_observation_space, n=self.N
+            self.single_observation_space, n=self.N
         )
-        self.action_space = batch_space(e.single_player_action_space, n=self.N)
+        self.single_action_space = e.single_player_action_space
+        self.action_space = batch_space(self.single_action_space, n=self.N)
 
     def reset(self, **kwargs):
         _obs, info = self.env.reset(**kwargs)

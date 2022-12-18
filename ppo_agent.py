@@ -14,6 +14,7 @@ from torch.distributions.categorical import Categorical
 from torch.utils.tensorboard import SummaryWriter
 
 from game_env import GameEnv
+from game_env.flatten import FlattenWrapper
 
 layout_name = "simple/circuit_room"
 
@@ -23,7 +24,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-name", type=str, default=os.path.basename(__file__).rstrip(".py"),
         help="the name of this experiment")
-    parser.add_argument("--seed", type=int, default=130,
+    parser.add_argument("--seed", type=int, default=1130,
         help="seed of the experiment")
     parser.add_argument("--torch-deterministic", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
         help="if toggled, `torch.backends.cudnn.deterministic=False`")
@@ -41,7 +42,7 @@ def parse_args():
     # Algorithm specific arguments
     parser.add_argument("--env-id", type=str, default="BreakoutNoFrameskip-v4",
         help="the id of the environment")
-    parser.add_argument("--total-timesteps", type=int, default=1_000_000,
+    parser.add_argument("--total-timesteps", type=int, default=3_000_000,
         help="total timesteps of the experiments")
     parser.add_argument("--learning-rate", type=float, default=2.5e-4,
         help="the learning rate of the optimizer")
@@ -65,7 +66,7 @@ def parse_args():
         help="the surrogate clipping coefficient")
     parser.add_argument("--clip-vloss", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
         help="Toggles whether or not to use a clipped loss for the value function, as per the paper.")
-    parser.add_argument("--ent-coef", type=float, default=0.01,
+    parser.add_argument("--ent-coef", type=float, default=0.03,
         help="coefficient of the entropy")
     parser.add_argument("--vf-coef", type=float, default=0.5,
         help="coefficient of the value function")
@@ -145,24 +146,26 @@ if __name__ == "__main__":
     envs = gym.vector.SyncVectorEnv(
         [make_env(args.env_id, args.seed + i, i, args.capture_video, run_name) for i in range(args.num_envs)]
     )
+    envs = FlattenWrapper(envs)
+
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
     agent = Agent(envs).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
     # ALGO Logic: Storage setup
-    obs = torch.zeros((args.num_steps, args.num_envs) + envs.single_observation_space.shape).to(device)
-    actions = torch.zeros((args.num_steps, args.num_envs) + envs.single_action_space.shape).to(device)
-    logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    values = torch.zeros((args.num_steps, args.num_envs)).to(device)
+    obs = torch.zeros((args.num_steps, envs.N) + envs.single_observation_space.shape).to(device)
+    actions = torch.zeros((args.num_steps, envs.N) + envs.single_action_space.shape).to(device)
+    logprobs = torch.zeros((args.num_steps, envs.N)).to(device)
+    rewards = torch.zeros((args.num_steps, envs.N)).to(device)
+    dones = torch.zeros((args.num_steps, envs.N)).to(device)
+    values = torch.zeros((args.num_steps, envs.N)).to(device)
 
     # TRY NOT TO MODIFY: start the game
     global_step = 0
     start_time = time.time()
     next_obs = torch.Tensor(envs.reset()[0]).to(device)
-    next_done = torch.zeros(args.num_envs).to(device)
+    next_done = torch.zeros(envs.N).to(device)
     num_updates = args.total_timesteps // args.batch_size
 
     for update in range(1, num_updates + 1):
@@ -294,11 +297,12 @@ if __name__ == "__main__":
         writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
     env = GameEnv(layout_name, render_mode='human')
+    env = FlattenWrapper(env)
     obs, info = env.reset()
-    while not env.window.is_closed:
+    while not env.unwrapped.window.is_closed:
         obs = torch.Tensor(obs).to(device)
-        action, logprob, _, value = agent.get_action_and_value(torch.unsqueeze(obs, 0))
-        obs, reward, done, truncated, info = env.step(np.squeeze(action.cpu().numpy()))
+        action, logprob, _, value = agent.get_action_and_value(obs)
+        obs, reward, done, truncated, info = env.step(action.cpu().numpy())
 
     envs.close()
     writer.close()

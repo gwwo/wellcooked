@@ -1,5 +1,5 @@
 XXXXSXXX
-X      X
+X   2  X
 X XXXX X
 X  1   X
 XXXOOXXX

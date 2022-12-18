@@ -21,6 +21,8 @@ def observe(game: Game):
                     holding
                 ]
 
+    position = dict()
+
     for player in game.players:
         x, y = (
             player.x,
@@ -28,10 +30,19 @@ def observe(game: Game):
         )
         holding, facing = player.describe_holding(), player.facing
         row, col = int(PIXELS_PER_UNIT * (h - 1 - y)), int(PIXELS_PER_UNIT * x)
+        position[player.id] = (row, col)
         obs[row : row + PIXELS_PER_UNIT, col : col + PIXELS_PER_UNIT] = PIXELS["chef"][
             holding
         ][facing]
-    return obs
+
+    obs = obs * 0.5
+    all_obs = dict()
+    for p_id, (row, col) in position.items():
+        my_obs = np.copy(obs)
+        my_obs[row : row + PIXELS_PER_UNIT, col : col + PIXELS_PER_UNIT] *= 2
+        all_obs[p_id] = my_obs
+
+    return all_obs
 
 def show(obs):
-    return "\n".join("".join("  " if v == 0.0 else "██" for v in r) for r in obs)
+    return "\n".join("".join("  " if v == 0.0 else "██" if v == 1.0 else "GG" for v in r) for r in obs)

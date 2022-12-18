@@ -11,6 +11,7 @@ from game_ui import GameUI
 
 from .observe import observe, PIXELS_PER_UNIT
 
+
 class GameEnv(gym.Env):
     metadata = {"render_modes": ["human"], "animation_speed_for_human": 6.0}
 
@@ -21,16 +22,24 @@ class GameEnv(gym.Env):
         self.render_mode = render_mode
 
         self.game = Game(*config.load(layout_name), move_to_axis=True)
-        assert len(self.game._players) == 1, "currently only support 1 player"
-        self.player_id = self.game._players[0].id
-
-        # self.action_space = spaces.Dict({player.id: spaces.Discrete(len(Action)) for player in self.game._players})
-        self.action_space = spaces.Discrete(len(Action))
-
         w, h = self.game.kitchen_w, self.game.kitchen_h
-        self.observation_space = spaces.Box(
-            low=0.0, high=1.0, shape=(h * PIXELS_PER_UNIT, w * PIXELS_PER_UNIT), dtype=np.float32
+
+        self.player_ids = [p.id for p in self.game._players]
+        self.player_N = len(self.player_ids)
+        self.single_player_action_space = spaces.Discrete(len(Action))
+        self.action_space = spaces.Dict(
+            {p_id: self.single_player_action_space for p_id in self.player_ids}
         )
+        self.single_player_observation_space = spaces.Box(
+            low=0.0,
+            high=1.0,
+            shape=(h * PIXELS_PER_UNIT, w * PIXELS_PER_UNIT),
+            dtype=np.float32,
+        )
+        self.observation_space = spaces.Dict(
+            {p_id: self.single_player_observation_space for p_id in self.player_ids}
+        )
+
         self.window = None
 
         self.step_count = 0
@@ -50,10 +59,13 @@ class GameEnv(gym.Env):
                 self.window.fresh()
         return obs, info
 
-    def step(self, action: int):
-        feedbacks = self.game.step({self.player_id: Action(value=action)})
+    def step(self, action: dict[str, int]):
+        actions = {p_id: Action(value=index) for p_id, index in action.items()}
+
+        feedbacks = self.game.step(actions)
         reward = sum(feedbacks.values())
         terminated, truncated, info = False, False, dict()
+
         obs = observe(self.game)
         self.rewards_over_period += reward
         self.step_count += 1

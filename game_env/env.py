@@ -60,8 +60,8 @@ class GameEnv(gym.Env):
                 self.window.fresh()
         return obs, info
 
-    def step(self, action: dict[str, int]):
-        actions = {p_id: Action(value=index) for p_id, index in action.items()}
+    def step(self, action: Union[dict[str, int], dict[str, Action]]):
+        actions = {p_id: a if type(a) is Action else Action(value=a) for p_id, a in action.items()}
 
         feedbacks = self.game.step(actions)
         reward = sum(feedbacks.values())

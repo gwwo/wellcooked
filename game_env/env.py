@@ -1,7 +1,7 @@
 import gym
 from gym import spaces
 import numpy as np
-
+from typing import Union
 import config
 
 from game import Action, Game
@@ -16,12 +16,13 @@ class GameEnv(gym.Env):
     metadata = {"render_modes": ["human"], "animation_speed_for_human": 6.0}
 
     def __init__(
-        self, layout_name: str, period=50, truncate_period=False, render_mode=None
+        self, layout_name: str, env_name: Union[str, None]=None, period=50, truncate_period=False, render_mode=None
     ):
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
 
         self.game = Game(*config.load(layout_name), move_to_axis=True)
+        self.env_name = env_name or layout_name
         w, h = self.game.kitchen_w, self.game.kitchen_h
 
         self.player_ids = [p.id for p in self.game._players]
@@ -54,7 +55,7 @@ class GameEnv(gym.Env):
         obs, info = observe(self.game), dict()
         if self.render_mode == "human":
             if self.window == None:
-                self.window = GameUI(self.game)
+                self.window = GameUI(self.game, caption=self.env_name)
             else:
                 self.window.fresh()
         return obs, info

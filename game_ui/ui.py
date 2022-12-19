@@ -80,6 +80,7 @@ class GameUI:
             moving_finished = self.players_moving(dt, speed)
             if first_tick and moving_finished and any_update:
                 # make the effect of `turn_and_face` stay for a while, friendly for animation
+                # TODO: the playing with continuous Action is lagging
                 time.sleep(0.1)
 
         self.clock.schedule_interval(moving, 1 / 120.0)

@@ -1,16 +1,16 @@
 
 
-With `python="^3.9"` `pyglet="^2.0.0"` installed, 
+With `python="^3.9"` `pyglet` `gym` and `numpy` installed, 
 
-Play with GameUI
+## Play with GameUI
 
 ```py
 from game_ui import GameUI
 from game import Game
 from config import load
 
-game = Game(*load("simple/circuit_room"), move_to_axis=True, player_size=(1, 1))
-game = Game(*load("big_room"), move_stride=0.08, player_size=(0.6, 0.96))
+game = Game(*load("simple/circuit_room_2"), move_to_axis=True, player_size=(1, 1))
+game = Game(*load("big_room_3"), move_stride=0.08, player_size=(0.6, 0.96))
 window = GameUI(game.reset())
 
 while not window.is_closed:
@@ -19,10 +19,10 @@ while not window.is_closed:
     for player_id, reward in feedbacks.items():
         if reward > 0:
             print(f"player_{player_id} just contributed {reward} point!")
-    window.sync(speed=6.0)
+    window.sync(speed=5.0)
 ```
 
-Interact with GameEnv
+## Play with GameEnv
 
 ```py
 from game_env import GameEnv
@@ -42,6 +42,7 @@ while not env.window.is_closed:
 
 After certain steps, the environment state is rendered as the following frame in the ui window:
 
+![environment state](./intro/a-frame-after-certain-steps.png)
 
 Meanwhile, the ascii representation of the two players' observations is printed as below:
 

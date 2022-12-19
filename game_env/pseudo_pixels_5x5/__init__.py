@@ -26,15 +26,15 @@ PIXELS = dict()
 
 PIXELS["counter"] = {
     "empty": _load("empty_counter"),
-    "onion_dispenser": _load("onion_dispenser_counter"),
-    "onion": _load("onion_on_counter"),
+    "tomato_dispenser": _load("tomato_dispenser_counter"),
+    "tomato": _load("tomato_on_counter"),
     "server": _load("server_counter"),
     "plate_dispenser": _load("plate_dispenser_counter"),
     "plate": _load("plate_on_counter"),
     "soup": _load("soup_on_counter"),
     "pot": _load("pot_counter"),
-    "pot_with_1_cooking": _load("pot_counter_with_1_onion"),
-    "pot_with_2_cooking": _load("pot_counter_with_2_onion"),
+    "pot_with_1_cooking": _load("pot_counter_with_1_tomato"),
+    "pot_with_2_cooking": _load("pot_counter_with_2_tomato"),
     "pot_ready": _load("pot_counter_with_soup"),
 }
 
@@ -52,5 +52,5 @@ PIXELS["chef"] = {
     "empty": _rotate(_load("chef")),
     "plate": _rotate(_load("chef_with_plate")),
     "soup": _rotate(_load("chef_with_soup")),
-    "onion": _rotate(_load("chef_with_onion")),
+    "tomato": _rotate(_load("chef_with_tomato")),
 }

@@ -35,10 +35,10 @@ def load(layout_name: str):
             elif char == 'S':
                 server = Server(can_serve_ingredient=layout_name.startswith('simple'))
                 tile = Counter(holding=server)
-            elif char in ['O']:
-                tile = Counter(holding=Ingredient(value='onion'))
+            elif char in ['T']:
+                tile = Counter(holding=Ingredient(value='tomato'))
                 tile.new_one_to_dispense = True
-            elif char in ['1', '2', '3']:
+            elif char in ['1', '2', '3', '4']:
                 players.append(Player(x=x, y=y, id=char))
             c.append(tile)
         kitchen.append(c)

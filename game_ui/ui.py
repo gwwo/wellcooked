@@ -1,5 +1,5 @@
 import pyglet
-
+import time
 
 from game import Action, Game, Player
 from game.roles import Counter
@@ -27,7 +27,7 @@ class GameUI:
                 if tile == None:
                     f_sprites.append(FloorSprite(x, y, batch))
                 elif type(tile) is Counter:
-                    c_sprites[tile] = CounterSprite(tile, x, y, batch)
+                    c_sprites[tile] = CounterSprite(tile.describe_holding(), x, y, batch)
         for player in game.players:
             p_sprites[player] = PlayerSprite(player.x, player.y, batch)
         self.c_sprites, self.p_sprites, self.f_sprites = c_sprites, p_sprites, f_sprites
@@ -62,11 +62,11 @@ class GameUI:
         self.draw()
 
     # during animation, players will move no more than `speed` amount of unit tiles in one second
-    def sync(self, speed: float = 6.0):
+    def sync(self, speed: float = 5.0):
         # print('start syncing')
         if self.is_closed:
             return
-        self.players_turn_and_interact()
+        any_update = self.players_turn_and_interact()
 
         if self.clock == None:
             self.clock = pyglet.clock.Clock()
@@ -78,6 +78,9 @@ class GameUI:
             if first_tick and dt > 0.02:
                 dt = 0.02
             moving_finished = self.players_moving(dt, speed)
+            if first_tick and moving_finished and any_update:
+                # make the effect of `turn_and_face` stay for a while, friendly for animation
+                time.sleep(0.1)
 
         self.clock.schedule_interval(moving, 1 / 120.0)
         while True:
@@ -110,25 +113,27 @@ class GameUI:
 
         self.window.dispatch_events()
         for p_id in actions:
-            mapping = USER_INPUT_MAPPING[p_id]
-            for key, action in mapping.items():
-                if key in self.pressed and self.pressed[key]:
-                    actions[p_id] = action
-                if key in self.triggered and self.triggered[key]:
-                    self.triggered[key] = False
-                    actions[p_id] = action
+            if p_id in USER_INPUT_MAPPING:
+                mapping = USER_INPUT_MAPPING[p_id]
+                for key, action in mapping.items():
+                    if key in self.pressed and self.pressed[key]:
+                        actions[p_id] = action
+                    if key in self.triggered and self.triggered[key]:
+                        self.triggered[key] = False
+                        actions[p_id] = action
         return actions
 
     def setup_keyboard_listener(self):
         self.pressed: dict[int, bool] = dict()
         self.triggered: dict[int, bool] = dict()
         for p in self.game.players:
-            mapping = USER_INPUT_MAPPING[p.id]
-            for key, action in mapping.items():
-                if action == Action.INTERACT:
-                    self.triggered[key] = False
-                else:
-                    self.pressed[key] = False
+            if p.id in USER_INPUT_MAPPING:
+                mapping = USER_INPUT_MAPPING[p.id]
+                for key, action in mapping.items():
+                    if action == Action.INTERACT:
+                        self.triggered[key] = False
+                    else:
+                        self.pressed[key] = False
 
         def on_key_press(symbol, modifiers):
             if symbol in self.pressed:
@@ -143,21 +148,28 @@ class GameUI:
         self.window.push_handlers(on_key_press, on_key_release)
 
     def players_turn_and_interact(self):
+        any_update = False
         for player, sprite in self.p_sprites.items():
-            sprite.update_image(player)
+            holding, facing = player.describe_holding(), player.facing
+            if holding != sprite.holding or facing != sprite.facing:
+                sprite.update_image(holding, facing)
+                any_update = True
         for counter, sprite in self.c_sprites.items():
-            sprite.update_overlay_image(counter)
+            holding = counter.describe_holding()
+            if holding != sprite.holding:
+                sprite.update_image(holding)
+                any_update = True
+        return any_update
 
     def players_move(self):
         for player, sprite in self.p_sprites.items():
-            sprite.set_x(player.x)
-            sprite.set_y(player.y)
+            sprite.update_position(player.x, player.y)
 
     def players_moving(self, dt: float, speed: float):
         # print('moving', dt)
         finished = True
         for player, sprite in self.p_sprites.items():
-            x, y = sprite.current_x, sprite.current_y
+            x, y = sprite.x, sprite.y
             dx, dy = player.x - x, player.y - y
             if dx != 0:
                 d_ = dt * speed
@@ -166,7 +178,7 @@ class GameUI:
                 else:
                     finished = False
                     x += d_ if dx > 0 else -d_
-                sprite.set_position(x=x)
+                sprite.update_position(x=x)
             if dy != 0:
                 d_ = dt * speed
                 if d_ > abs(dy):
@@ -174,5 +186,5 @@ class GameUI:
                 else:
                     finished = False
                     y += d_ if dy > 0 else -d_
-                sprite.set_position(y=y)
+                sprite.update_position(y=y)
         return finished

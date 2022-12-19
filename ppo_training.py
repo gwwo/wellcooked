@@ -14,9 +14,9 @@ from torch.distributions.categorical import Categorical
 from torch.utils.tensorboard import SummaryWriter
 
 from game_env import GameEnv
-from game_env.flatten import FlattenWrapper
+from game_env.serialize import SerializeWrapper
 
-layout_name = "circuit_room"
+layout_name = "circuit_room_2"
 
 
 def parse_args():
@@ -42,7 +42,7 @@ def parse_args():
     # Algorithm specific arguments
     parser.add_argument("--env-id", type=str, default="BreakoutNoFrameskip-v4",
         help="the id of the environment")
-    parser.add_argument("--total-timesteps", type=int, default=3_000_000,
+    parser.add_argument("--total-timesteps", type=int, default=6_000_000,
         help="total timesteps of the experiments")
     parser.add_argument("--learning-rate", type=float, default=2.5e-3,
         help="the learning rate of the optimizer")
@@ -66,7 +66,7 @@ def parse_args():
         help="the surrogate clipping coefficient")
     parser.add_argument("--clip-vloss", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
         help="Toggles whether or not to use a clipped loss for the value function, as per the paper.")
-    parser.add_argument("--ent-coef", type=float, default=0.03,
+    parser.add_argument("--ent-coef", type=float, default=0.01,
         help="coefficient of the entropy")
     parser.add_argument("--vf-coef", type=float, default=0.5,
         help="coefficient of the value function")
@@ -126,7 +126,7 @@ class Agent(nn.Module):
 
 if __name__ == "__main__":
     args = parse_args()
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+    run_name = f"{layout_name}__{int(time.time())}"
 
     writer = SummaryWriter(f"runs/{run_name}")
     writer.add_text(
@@ -146,7 +146,7 @@ if __name__ == "__main__":
     envs = gym.vector.SyncVectorEnv(
         [make_env(args.env_id, args.seed + i, i, args.capture_video, run_name) for i in range(args.num_envs)]
     )
-    envs = FlattenWrapper(envs)
+    envs = SerializeWrapper(envs)
 
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
@@ -296,13 +296,7 @@ if __name__ == "__main__":
         print("SPS:", int(global_step / (time.time() - start_time)))
         writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
-    env = GameEnv(layout_name, render_mode='human')
-    env = FlattenWrapper(env)
-    obs, info = env.reset()
-    while not env.unwrapped.window.is_closed:
-        obs = torch.Tensor(obs).to(device)
-        action, logprob, _, value = agent.get_action_and_value(obs)
-        obs, reward, done, truncated, info = env.step(action.cpu().numpy())
-
+    torch.save(agent.state_dict(), f"./trained/{run_name}.pth")
+    print(run_name)
     envs.close()
     writer.close()

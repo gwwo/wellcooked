@@ -87,6 +87,7 @@ class Counter:
                     return "pot_with_3_cooking"
                 else:
                     return "pot_ready"
+        raise ValueError("must be holding something wrong")
 
 
 class Chef:
@@ -103,6 +104,7 @@ class Chef:
                 return "soup"
         elif type(self.holding) is Ingredient:
             return self.holding.value
+        raise ValueError("must be holding something wrong")
 
     def interact(self, counter: Counter):
         reward = 0

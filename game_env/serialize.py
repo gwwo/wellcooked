@@ -9,7 +9,7 @@ from gym.vector.utils.spaces import batch_space
 import numpy as np
 
 
-class FlattenWrapper(gym.Wrapper):
+class SerializeWrapper(gym.Wrapper):
     def __init__(self, env: Union[GameEnv, gym.vector.SyncVectorEnv]):
         super().__init__(env)
         if type(self.env) is gym.vector.SyncVectorEnv:

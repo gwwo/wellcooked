@@ -16,15 +16,15 @@ from torch.utils.tensorboard import SummaryWriter
 from game_env import GameEnv
 from game_env.serialize import SerializeWrapper
 
-layout_name = "circuit_room_2"
-
+layout_name = "circuit_room_8"
+trained_model_name = "circuit_room_8__1671546995"
 
 def parse_args():
     # fmt: off
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-name", type=str, default=os.path.basename(__file__).rstrip(".py"),
         help="the name of this experiment")
-    parser.add_argument("--seed", type=int, default=1130,
+    parser.add_argument("--seed", type=int, default=611302,
         help="seed of the experiment")
     parser.add_argument("--torch-deterministic", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
         help="if toggled, `torch.backends.cudnn.deterministic=False`")
@@ -42,9 +42,9 @@ def parse_args():
     # Algorithm specific arguments
     parser.add_argument("--env-id", type=str, default="BreakoutNoFrameskip-v4",
         help="the id of the environment")
-    parser.add_argument("--total-timesteps", type=int, default=3_000_000,
+    parser.add_argument("--total-timesteps", type=int, default=1_000_000,
         help="total timesteps of the experiments")
-    parser.add_argument("--learning-rate", type=float, default=2.5e-3,
+    parser.add_argument("--learning-rate", type=float, default=2.5e-5,
         help="the learning rate of the optimizer")
     parser.add_argument("--num-envs", type=int, default=64,
         help="the number of parallel game environments")
@@ -66,7 +66,7 @@ def parse_args():
         help="the surrogate clipping coefficient")
     parser.add_argument("--clip-vloss", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True,
         help="Toggles whether or not to use a clipped loss for the value function, as per the paper.")
-    parser.add_argument("--ent-coef", type=float, default=0.03,
+    parser.add_argument("--ent-coef", type=float, default=0.06,
         help="coefficient of the entropy")
     parser.add_argument("--vf-coef", type=float, default=0.5,
         help="coefficient of the value function")
@@ -80,10 +80,11 @@ def parse_args():
     # fmt: on
     return args
 
+# when not delivering soup over a certain period, the game will be reset!
 
 def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
-        env = GameEnv(layout_name)
+        env = GameEnv(layout_name, period=100)
         return env
     return thunk
 
@@ -151,6 +152,9 @@ if __name__ == "__main__":
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
     agent = Agent(envs).to(device)
+    if trained_model_name:
+        agent.load_state_dict(torch.load(f"./trained/{trained_model_name}.pth"))
+        agent.eval()
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
     # ALGO Logic: Storage setup
@@ -191,15 +195,22 @@ if __name__ == "__main__":
             next_obs, reward, done, truncated, info = envs.step(action.cpu().numpy())
             rewards[step] = torch.tensor(reward).to(device).view(-1)
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(done).to(device)
+            # BUG: when truncated, the next_obs should be in the final_info
+            rs = []
+            if 'periodic_return' in info:
+                for r, valid in zip(info['periodic_return'], info['_periodic_return']):
+                    if not valid: continue
+                    rs.append(r)
+            if 'final_info' in info:
+                for final, valid in zip(info['final_info'], info['_final_info']):
+                    if not valid: continue
+                    if 'periodic_return' in final:
+                        rs.append(final['periodic_return'])
+            if len(rs) != 0:
+                r = np.mean(rs)
+                writer.add_scalar("charts/periodic_return", r, global_step)
+                print(f"global_step={global_step}, periodic_return={r}")
 
-            if 'rewards_over_period' in info:
-                rs = [   
-                    r
-                    for r, valid in zip(info['rewards_over_period'], info['_rewards_over_period'])
-                    if valid
-                ]
-                writer.add_scalar("charts/episodic_return", sum(rs)/len(rs), global_step)
-                print(f"global_step={global_step}, episodic_return={sum(rs)/len(rs)}")
 
         # bootstrap value if not done
         with torch.no_grad():

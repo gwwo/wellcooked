@@ -38,7 +38,7 @@ def load(layout_name: str):
             elif char in ['T']:
                 tile = Counter(holding=Ingredient(value='tomato'))
                 tile.new_one_to_dispense = True
-            elif char in ['1', '2', '3', '4']:
+            elif char in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']:
                 players.append(Player(x=x, y=y, id=char))
             c.append(tile)
         kitchen.append(c)

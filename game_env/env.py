@@ -23,6 +23,7 @@ class GameEnv(gym.Env):
         layout_name: str,
         period: int = 50,
         truncate_at: Union[int, None] = None,
+        terminate_at: Union[int, None] = None,
         render_mode=None,
         window_caption=None,
     ):
@@ -54,6 +55,7 @@ class GameEnv(gym.Env):
         self.step_count = 0
         self.period = period
         self.truncate_at = truncate_at
+        self.terminate_at = terminate_at
         self.periodic_return = 0.0
 
     def reset(self, seed=None):
@@ -78,7 +80,7 @@ class GameEnv(gym.Env):
 
         feedbacks = self.game.step(actions)
         reward = sum(feedbacks.values())
-        truncated, info = False, dict()
+        terminated, truncated, info = False, False, dict()
 
         obs = observe(self.game)
         self.periodic_return += reward
@@ -88,13 +90,15 @@ class GameEnv(gym.Env):
             info["periodic_return"] = self.periodic_return
             self.periodic_return = 0.0
 
+        if self.terminate_at != None:
+            terminated = self.step_count >= self.terminate_at
         if self.truncate_at != None:
             truncated = self.step_count >= self.truncate_at
+
 
         if self.render_mode == "human":
             self.window.sync(self.metadata["animation_speed_for_ui"])
 
-        terminated = False # will always be False
         return obs, reward, terminated, truncated, info
 
 

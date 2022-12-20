@@ -1,6 +1,6 @@
 import pyglet
 import time
-
+from typing import Union
 from game import Action, Game, Player
 from game.roles import Counter
 
@@ -11,8 +11,9 @@ from .sprites import CounterSprite, PlayerSprite, FloorSprite, PIXELS_PER_UNIT
 
 
 class GameUI:
-    def __init__(self, game: Game, caption="wellcooked"):
+    def __init__(self, game: Game, caption: Union[str, None]=None):
         w, h = game.kitchen_w, game.kitchen_h
+        caption = caption or "wellcooked"
         self.window = pyglet.window.Window(
             w * PIXELS_PER_UNIT, h * PIXELS_PER_UNIT, caption
         )

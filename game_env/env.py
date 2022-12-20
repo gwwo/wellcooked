@@ -13,16 +13,23 @@ from .observe import observe, PIXELS_PER_UNIT
 
 
 class GameEnv(gym.Env):
-    metadata = {"render_modes": ["human"], "animation_speed_for_human": 6.0}
+    metadata = {
+        "render_modes": ["human"],
+        "animation_speed_for_ui": 6.0,
+    }
 
     def __init__(
-        self, layout_name: str, env_name: Union[str, None]=None, period=50, truncate_period=False, render_mode=None
+        self,
+        layout_name: str,
+        period: int = 50,
+        truncate_at: Union[int, None] = None,
+        render_mode=None,
+        window_caption=None,
     ):
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
 
         self.game = Game(*config.load(layout_name), move_to_axis=True)
-        self.env_name = env_name or layout_name
         w, h = self.game.kitchen_w, self.game.kitchen_h
 
         self.player_ids = [p.id for p in self.game._players]
@@ -42,11 +49,12 @@ class GameEnv(gym.Env):
         )
 
         self.window = None
+        self.window_caption = window_caption or layout_name
 
         self.step_count = 0
         self.period = period
-        self.truncate_period = truncate_period
-        self.rewards_over_period = 0.0
+        self.truncate_at = truncate_at
+        self.periodic_return = 0.0
 
     def reset(self, seed=None):
         super().reset(seed=seed)
@@ -55,31 +63,40 @@ class GameEnv(gym.Env):
         obs, info = observe(self.game), dict()
         if self.render_mode == "human":
             if self.window == None:
-                self.window = GameUI(self.game, caption=self.env_name)
+                self.window = GameUI(
+                    self.game, caption=self.window_caption
+                )
             else:
                 self.window.fresh()
         return obs, info
 
     def step(self, action: Union[dict[str, int], dict[str, Action]]):
-        actions = {p_id: a if type(a) is Action else Action(value=a) for p_id, a in action.items()}
+        actions = {
+            p_id: a if type(a) is Action else Action(value=a)
+            for p_id, a in action.items()
+        }
 
         feedbacks = self.game.step(actions)
         reward = sum(feedbacks.values())
-        terminated, truncated, info = False, False, dict()
+        truncated, info = False, dict()
 
         obs = observe(self.game)
-        self.rewards_over_period += reward
+        self.periodic_return += reward
         self.step_count += 1
 
         if self.step_count % self.period == 0:
-            truncated = self.truncate_period
-            info["rewards_over_period"] = self.rewards_over_period
-            self.rewards_over_period = 0.0
+            info["periodic_return"] = self.periodic_return
+            self.periodic_return = 0.0
+
+        if self.truncate_at != None:
+            truncated = self.step_count >= self.truncate_at
 
         if self.render_mode == "human":
-            self.window.sync(self.metadata["animation_speed_for_human"])
+            self.window.sync(self.metadata["animation_speed_for_ui"])
 
+        terminated = False # will always be False
         return obs, reward, terminated, truncated, info
+
 
     def close(self):
         if self.window != None and not self.window.is_closed:
